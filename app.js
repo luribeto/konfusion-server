@@ -16,7 +16,7 @@ const mongoose = require('mongoose');
 
 const Dishes = require('./models/dishes');
 
-const url = 'mongodb://localhost:27017/konfusion';
+const url = process.env['MONGO_URL'] || 'mongodb://localhost:27017/konfusion';
 const connect = mongoose.connect(url);
 
 connect.then((db) => {
