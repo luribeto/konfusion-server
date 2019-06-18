@@ -29,6 +29,12 @@ connect.then((db) => {
 
 var app = express();
 
+// Secure traffic only
+app.all('*', (req, res, next) => {
+  if (req.secure) return next();
+  res.redirect(307, 'https://' + req.hostname + ':' + app.get('secPort') + req.url);
+});
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
@@ -101,7 +107,7 @@ app.use('/users', usersRouter);
 //         var authHeader = req.headers.authorization;
 //         if (!authHeader) {
 //             var err = new Error('You are not authenticated!');
-//             res.setHeader('WWW-Authenticate', 'Basic');                        
+//             res.setHeader('WWW-Authenticate', 'Basic');
 //             err.status = 401;
 //             next(err);
 //             return;
