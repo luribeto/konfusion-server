@@ -3,10 +3,22 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const _ = require('lodash');
 const authenticate = require('../authenticate');
+const User = require('../models/user');
 
 const Dishes = require('../models/dishes');
 
 const dishRouter = express.Router();
+
+const isAdmin = async (req) => {
+  const err = new Error('Unable to find user to check if isAdmin');
+  err.status = 404;
+
+  const user = await User.findOne({_id: req.user._id})
+    .catch(() => err);
+
+  if (user) return (user.admin);
+  return err;
+};
 
 dishRouter.use(bodyParser.json());
 
@@ -195,9 +207,17 @@ dishRouter.route('/:dishId/comments/:commentId')
       + '/comments/' + req.params.commentId);
   })
   .put(authenticate.verifyUser, (req, res, next) => {
-    Dishes.findById(req.params.dishId)
-      .then((dish) => {
-        if (dish != null && dish.comments.id(req.params.commentId) != null) {
+    // Dishes.findById(req.params.dishId)
+    Promise.all([isAdmin(req), Dishes.findById(req.params.dishId)])
+      .then(([isAdmin, dish]) => {
+        const comment = dish.comments.id(req.params.commentId);
+        const { author } = comment;
+
+        console.log('isAdmin>>>>', isAdmin);
+        console.log('comment>>>>', comment);
+        console.log('author equals user._id>>>>', author.equals(req.user._id));
+
+        if (dish != null && comment != null && (author.equals(req.user._id) || isAdmin)) {
           if (req.body.rating) {
             dish.comments.id(req.params.commentId).rating = req.body.rating;
           }
@@ -209,6 +229,7 @@ dishRouter.route('/:dishId/comments/:commentId')
               Dishes.findById(dish._id)
                 .populate('comments.author')
                 .then((dish) => {
+                  console.log('dish response>>>>', dish);
                   res.statusCode = 200;
                   res.setHeader('Content-Type', 'application/json');
                   res.json(dish);
@@ -220,10 +241,15 @@ dishRouter.route('/:dishId/comments/:commentId')
           err.status = 404;
           return next(err);
         }
-        else {
+        else if (dish.comments.id(req.params.commentId) === null) {
           err = new Error('Comment ' + req.params.commentId + ' not found');
           err.status = 404;
           return next(err);
+        }
+        else {
+          err = new Error('you are not authorized to update this comment!');
+          err.status = 403;
+          return next(err);  
         }
       }, (err) => next(err))
       .catch((err) => next(err));
