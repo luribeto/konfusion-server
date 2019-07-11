@@ -34,6 +34,7 @@ var app = express();
 
 // Secure traffic only
 app.all('*', (req, res, next) => {
+  // Commented to heroku app because proxy send the data after proxy certificate
   // if (req.secure) return next();
   // res.redirect(307, 'https://' + req.hostname + ':' + app.get('secPort') + req.url);
 
